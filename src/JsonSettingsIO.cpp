@@ -19,6 +19,102 @@
 #include "SettingsList.h"
 #include "WifiCredentialStore.h"
 
+namespace {
+constexpr uint8_t SETTINGS_SCHEMA_VERSION = 2;
+
+const char* fontFamilyKey(const uint8_t fontFamily) {
+  using S = CrossPointSettings;
+  switch (fontFamily) {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+    case S::LEXENDDECA:
+      return "lexenddeca";
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
+    case S::BITTER:
+      return "bitter";
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+    case S::CHAREINK:
+      return "chareink";
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+    case S::ONEST:
+      return "onest";
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+    case S::SOURCERER:
+      return "sourcerer";
+#endif
+    default:
+      return "";
+  }
+}
+
+uint8_t fontFamilyFromKey(const char* key) {
+  using S = CrossPointSettings;
+  if (!key) return S::DEFAULT_FONT_FAMILY;
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+  if (strcmp(key, "lexenddeca") == 0) return S::LEXENDDECA;
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
+  if (strcmp(key, "bitter") == 0) return S::BITTER;
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+  if (strcmp(key, "chareink") == 0) return S::CHAREINK;
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+  if (strcmp(key, "onest") == 0) return S::ONEST;
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+  if (strcmp(key, "sourcerer") == 0) return S::SOURCERER;
+#endif
+  return S::DEFAULT_FONT_FAMILY;
+}
+
+uint8_t mapLegacyFontFamily(const uint8_t legacyValue) {
+  using S = CrossPointSettings;
+  switch (legacyValue) {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+    case 0:
+      return S::LEXENDDECA;
+#else
+    case 0:
+      return S::DEFAULT_FONT_FAMILY;
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
+    case 1:
+      return S::BITTER;
+#else
+    case 1:
+      return S::DEFAULT_FONT_FAMILY;
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+    case 2:
+      return S::CHAREINK;
+#else
+    case 2:
+      return S::DEFAULT_FONT_FAMILY;
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+    case 3:
+      return S::SOURCERER;
+#else
+    case 3:
+      return S::DEFAULT_FONT_FAMILY;
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+    case 4:
+      return S::ONEST;
+#else
+    case 4:
+      return S::DEFAULT_FONT_FAMILY;
+#endif
+    default:
+      return S::DEFAULT_FONT_FAMILY;
+  }
+}
+}  // namespace
+
 // Convert legacy settings.
 void applyLegacyStatusBarSettings(CrossPointSettings& settings) {
   switch (static_cast<CrossPointSettings::STATUS_BAR_MODE>(settings.statusBar)) {
@@ -127,6 +223,8 @@ bool JsonSettingsIO::loadState(CrossPointState& s, const char* json) {
 bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path) {
   JsonDocument doc;
 
+  doc["settingsSchemaVersion"] = SETTINGS_SCHEMA_VERSION;
+
   for (const auto& info : getSettingsList()) {
     if (!info.key) continue;
     // Dynamic entries (KOReader etc.) are stored in their own files — skip.
@@ -159,6 +257,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   // Language -- managed by LanguageSelectActivity, not in SettingsList.
   // Stored as ISO code string ("EN", "DE", ...) for stability across enum reorders.
   doc["language"] = (s.language < getLanguageCount()) ? LANGUAGE_CODES[s.language] : "EN";
+  doc["fontFamilyName"] = fontFamilyKey(s.fontFamily);
 
   String json;
   serializeJson(doc, json);
@@ -175,6 +274,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
   }
 
   auto clamp = [](uint8_t val, uint8_t maxVal, uint8_t def) -> uint8_t { return val < maxVal ? val : def; };
+  const uint8_t schemaVersion = doc["settingsSchemaVersion"] | static_cast<uint8_t>(0);
 
   // Legacy migration: if statusBarChapterPageCount is absent this is a pre-refactor settings file.
   // Populate s with migrated values now so the generic loop below picks them up as defaults and clamps them.
@@ -226,6 +326,16 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
       s.*(info.valuePtr) = v;
     }
   }
+
+  if (doc["fontFamilyName"].is<const char*>()) {
+    s.fontFamily = fontFamilyFromKey(doc["fontFamilyName"].as<const char*>());
+  } else {
+    if (schemaVersion < SETTINGS_SCHEMA_VERSION) {
+      s.fontFamily = mapLegacyFontFamily(doc["fontFamily"] | static_cast<uint8_t>(0));
+    }
+    if (needsResave) *needsResave = true;
+  }
+
   // Front button remap — managed by RemapFrontButtons sub-activity, not in SettingsList.
   using S = CrossPointSettings;
   s.frontButtonBack =
