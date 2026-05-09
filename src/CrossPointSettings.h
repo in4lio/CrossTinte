@@ -160,6 +160,7 @@ class CrossPointSettings {
     SCREENSHOT = 11,
     CYCLE_PAGE_TURN = 12,
     FILE_TRANSFER = 13,
+    CHANGE_FONT_SIZE = 14,
     SHORT_PWRBTN_COUNT
   };
 

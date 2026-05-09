@@ -956,6 +956,11 @@ bool EpubReaderActivity::executeShortPowerButtonAction() {
     case CrossPointSettings::SHORT_PWRBTN::FILE_TRANSFER:
       executeReaderQuickAction(CrossPointSettings::LONG_MENU_FILE_TRANSFER);
       return true;
+    case CrossPointSettings::SHORT_PWRBTN::CHANGE_FONT_SIZE:
+      if (SETTINGS.changeReaderFontSize(/*larger=*/true)) {
+        reindexCurrentSection();
+      }
+      return true;
     default:
       return false;
   }
@@ -1015,6 +1020,11 @@ bool EpubReaderActivity::executeLongPowerButtonAction() {
       return true;
     case CrossPointSettings::SHORT_PWRBTN::FILE_TRANSFER:
       executeReaderQuickAction(CrossPointSettings::LONG_MENU_FILE_TRANSFER);
+      return true;
+    case CrossPointSettings::SHORT_PWRBTN::CHANGE_FONT_SIZE:
+      if (SETTINGS.changeReaderFontSize(/*larger=*/true)) {
+        reindexCurrentSection();
+      }
       return true;
     default:
       return false;
