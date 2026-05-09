@@ -131,9 +131,21 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
         // version when SD fonts are installed.
         SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
                           {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
                               StrId::STR_LEXEND_DECA,
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
                               StrId::STR_BITTER,
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
                               StrId::STR_CHAREINK,
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+                              StrId::STR_ONEST,
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+                              StrId::STR_SOURCERER,
+#endif
                           },
                           "fontFamily", StrId::STR_CAT_READER),
         SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
