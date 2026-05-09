@@ -141,6 +141,18 @@ void TxtReaderActivity::loop() {
     return;
   }
 
+  if (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::CHANGE_FONT_SIZE &&
+      mappedInput.wasReleased(MappedInputManager::Button::Power) &&
+      mappedInput.getHeldTime() < SETTINGS.getPowerButtonLongPressDuration()) {
+    if (SETTINGS.changeReaderFontSize(/*larger=*/true)) {
+      initialized = false;
+      pageOffsets.clear();
+      currentPageLines.clear();
+      requestUpdate();
+    }
+    return;
+  }
+
   auto [prevTriggered, nextTriggered, fromSideBtn, fromTilt] = ReaderUtils::detectPageTurn(mappedInput);
   (void)fromSideBtn;
   (void)fromTilt;
