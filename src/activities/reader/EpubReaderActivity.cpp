@@ -469,14 +469,14 @@ void EpubReaderActivity::loop() {
 
     if (!sideButtonLongPressHandled && topLongPressed) {
       sideButtonLongPressHandled = !topReleased;
-      if (SETTINGS.changeReaderFontSize(/*larger=*/true)) {
+      if (sdFontSystem.changeReaderFontSize(/*larger=*/true)) {
         reindexCurrentSection();
       }
       return;
     }
     if (!sideButtonLongPressHandled && bottomLongPressed) {
       sideButtonLongPressHandled = !bottomReleased;
-      if (SETTINGS.changeReaderFontSize(/*larger=*/false)) {
+      if (sdFontSystem.changeReaderFontSize(/*larger=*/false)) {
         reindexCurrentSection();
       }
       return;
@@ -976,7 +976,7 @@ bool EpubReaderActivity::executeShortPowerButtonAction() {
       executeReaderQuickAction(CrossPointSettings::LONG_MENU_FILE_TRANSFER);
       return true;
     case CrossPointSettings::SHORT_PWRBTN::CHANGE_FONT_SIZE:
-      if (SETTINGS.changeReaderFontSize(/*larger=*/true)) {
+      if (sdFontSystem.changeReaderFontSize(/*larger=*/true)) {
         reindexCurrentSection();
       }
       return true;
@@ -1041,7 +1041,7 @@ bool EpubReaderActivity::executeLongPowerButtonAction() {
       executeReaderQuickAction(CrossPointSettings::LONG_MENU_FILE_TRANSFER);
       return true;
     case CrossPointSettings::SHORT_PWRBTN::CHANGE_FONT_SIZE:
-      if (SETTINGS.changeReaderFontSize(/*larger=*/true)) {
+      if (sdFontSystem.changeReaderFontSize(/*larger=*/true)) {
         reindexCurrentSection();
       }
       return true;

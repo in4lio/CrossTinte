@@ -114,6 +114,36 @@ void SdCardFontSystem::ensureLoaded(GfxRenderer& renderer) {
   }
 }
 
+bool SdCardFontSystem::changeReaderFontSize(const bool larger) {
+  if (SETTINGS.sdFontFamilyName[0] == '\0') {
+    return SETTINGS.changeReaderFontSize(larger);
+  }
+
+  if (registryDirty_.exchange(false, std::memory_order_acquire)) {
+    registry_.discover();
+  }
+
+  const auto* family = registry_.findFamily(SETTINGS.sdFontFamilyName);
+  if (!family) {
+    return SETTINGS.changeReaderFontSize(larger);
+  }
+
+  const uint8_t originalFontSize = SETTINGS.fontSize;
+  const uint8_t activeSizeCount = CrossPointSettings::getActiveReaderFontSizeCount();
+  for (uint8_t attempt = 0; attempt < activeSizeCount; attempt++) {
+    if (!SETTINGS.changeReaderFontSize(larger)) break;
+
+    if (family->hasSize(targetPointSizeFromSettings())) {
+      return true;
+    }
+
+    if (SETTINGS.fontSize == originalFontSize) break;
+  }
+
+  SETTINGS.fontSize = originalFontSize;
+  return false;
+}
+
 int SdCardFontSystem::resolveFontId(const char* familyName, uint8_t /*fontSizeEnum*/) const {
   // The manager loads exactly one size (closest to the effective reader point
   // size), so the enum is implicit — always return the single loaded font ID for this family.
