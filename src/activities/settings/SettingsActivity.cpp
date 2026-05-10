@@ -366,13 +366,13 @@ void SettingsActivity::render(RenderLock&&) {
       },
       true, nullptr, [&settings](int i) { return settings[i].type == SettingType::SECTION_HEADER; });
 
-  // Draw CrossInk version label at the bottom of the System tab
+  // Draw CrossTinte version label at the bottom of the System tab
   if (selectedCategoryIndex == 3) {
-    const int labelWidth = renderer.getTextWidth(SMALL_FONT_ID, "CrossInk " CROSSINK_VERSION);
+    const int labelWidth = renderer.getTextWidth(SMALL_FONT_ID, "CrossTinte " CROSSINK_VERSION);
     const int labelX = (pageWidth - labelWidth) / 2;
     const int labelY =
         pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing - 15;  // 15px above the button hints
-    renderer.drawText(SMALL_FONT_ID, labelX, labelY, "CrossInk " CROSSINK_VERSION);
+    renderer.drawText(SMALL_FONT_ID, labelX, labelY, "CrossTinte " CROSSINK_VERSION);
   }
 
   // Draw help text
