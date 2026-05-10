@@ -12,6 +12,7 @@
 #include "MappedInputManager.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
+#include "SdCardFontGlobals.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
@@ -145,6 +146,10 @@ void TxtReaderActivity::loop() {
       mappedInput.wasReleased(MappedInputManager::Button::Power) &&
       mappedInput.getHeldTime() < SETTINGS.getPowerButtonLongPressDuration()) {
     if (SETTINGS.changeReaderFontSize(/*larger=*/true)) {
+      {
+        RenderLock lock(*this);
+        ensureSdFontLoaded();
+      }
       initialized = false;
       pageOffsets.clear();
       currentPageLines.clear();

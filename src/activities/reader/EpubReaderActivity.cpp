@@ -32,6 +32,7 @@
 #include "QrDisplayActivity.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
+#include "SdCardFontGlobals.h"
 #include "activities/util/ConfirmationActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -424,13 +425,7 @@ void EpubReaderActivity::loop() {
                              applyOrientation(menu.orientation);
                              toggleAutoPageTurn(menu.pageTurnOption);
                              if (menu.settingsChanged) {
-                               RenderLock lock(*this);
-                               if (section) {
-                                 cachedSpineIndex = currentSpineIndex;
-                                 cachedChapterTotalPageCount = section->pageCount;
-                                 nextPageNumber = section->currentPage;
-                               }
-                               section.reset();  // Force re-layout with changed reader settings
+                               reindexCurrentSection();
                              }
                              if (!result.isCancelled) {
                                onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
@@ -859,6 +854,7 @@ void EpubReaderActivity::reindexCurrentSection() {
   SETTINGS.saveToFile();
   {
     RenderLock lock(*this);
+    ensureSdFontLoaded();
     GUI.drawPopup(renderer, tr(STR_INDEXING));
     if (section) {
       cachedSpineIndex = currentSpineIndex;
