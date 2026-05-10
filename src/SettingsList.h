@@ -17,7 +17,23 @@
 // are appended after the built-in fonts. Otherwise only built-in fonts are listed.
 inline SettingInfo buildFontFamilySetting(const SdCardFontRegistry* registry) {
   // Built-in font labels (StrId)
-  std::vector<StrId> enumValues = {StrId::STR_LEXEND_DECA, StrId::STR_BITTER, StrId::STR_CHAREINK};
+  std::vector<StrId> enumValues = {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+      StrId::STR_LEXEND_DECA,
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
+      StrId::STR_BITTER,
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+      StrId::STR_CHAREINK,
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+      StrId::STR_ONEST,
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+      StrId::STR_SOURCERER,
+#endif
+  };
   // Runtime string labels for SD card fonts
   std::vector<std::string> enumStringValues;
 
@@ -38,9 +54,21 @@ inline SettingInfo buildFontFamilySetting(const SdCardFontRegistry* registry) {
   // with all options when SD fonts are present.
   std::vector<std::string> allStringValues;
   if (sdFontCount > 0) {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
     allStringValues.push_back(I18N.get(StrId::STR_LEXEND_DECA));
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
     allStringValues.push_back(I18N.get(StrId::STR_BITTER));
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
     allStringValues.push_back(I18N.get(StrId::STR_CHAREINK));
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+    allStringValues.push_back(I18N.get(StrId::STR_ONEST));
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+    allStringValues.push_back(I18N.get(StrId::STR_SOURCERER));
+#endif
     allStringValues.insert(allStringValues.end(), enumStringValues.begin(), enumStringValues.end());
   }
 
