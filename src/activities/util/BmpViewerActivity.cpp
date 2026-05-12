@@ -5,12 +5,74 @@
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
+#include <Logging.h>
 
 #include <algorithm>
+#include <cmath>
 
 #include "CrossPointSettings.h"
 #include "components/UITheme.h"
+#include "Epub/converters/ImageDecoderFactory.h"
 #include "fontIds.h"
+
+namespace {
+
+struct ImageFit {
+  int x{0};
+  int y{0};
+  int width{0};
+  int height{0};
+};
+
+ImageFit fitImageToScreen(const int imageWidth, const int imageHeight, const int pageWidth, const int pageHeight) {
+  ImageFit fit;
+
+  if (imageWidth <= 0 || imageHeight <= 0 || pageWidth <= 0 || pageHeight <= 0) {
+    return fit;
+  }
+
+  const float scaleX = static_cast<float>(pageWidth) / static_cast<float>(imageWidth);
+  const float scaleY = static_cast<float>(pageHeight) / static_cast<float>(imageHeight);
+  float scale = scaleX < scaleY ? scaleX : scaleY;
+  if (scale > 1.0f) {
+    scale = 1.0f;
+  }
+
+  fit.width = std::max(1, static_cast<int>(std::round(static_cast<float>(imageWidth) * scale)));
+  fit.height = std::max(1, static_cast<int>(std::round(static_cast<float>(imageHeight) * scale)));
+  fit.x = (pageWidth - fit.width) / 2;
+  fit.y = (pageHeight - fit.height) / 2;
+  return fit;
+}
+
+void drawBackHints(GfxRenderer& renderer, MappedInputManager& mappedInput) {
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+}
+
+void drawBmpViewerHints(GfxRenderer& renderer, MappedInputManager& mappedInput) {
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SET_SLEEP_COVER), "", "");
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+}
+
+void drawViewerError(GfxRenderer& renderer, MappedInputManager& mappedInput, const int pageHeight, const char* message) {
+  renderer.clearScreen();
+  renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2, message);
+  drawBackHints(renderer, mappedInput);
+  renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+}
+
+bool renderDecodedImage(const std::string& filePath, GfxRenderer& renderer, ImageToFramebufferDecoder& decoder,
+                        const RenderConfig& config) {
+  if (!decoder.decodeToFramebuffer(filePath, renderer, config)) {
+    LOG_ERR("IMGVIEW", "Failed to decode image: %s", filePath.c_str());
+    return false;
+  }
+
+  return true;
+}
+
+}  // namespace
 
 BmpViewerActivity::BmpViewerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::string path)
     : Activity("BmpViewer", renderer, mappedInput), filePath(std::move(path)) {}
@@ -37,7 +99,7 @@ void BmpViewerActivity::loadSiblingImages() {
       file.getName(name, sizeof(name));
       if (name[0] != '.') {
         std::string fname(name);
-        if (fname.length() >= 4 && fname.substr(fname.length() - 4) == ".bmp") {
+        if (FsHelpers::hasBmpExtension(fname) || FsHelpers::hasPngExtension(fname)) {
           siblingImages.push_back(fname);
         }
       }
@@ -69,6 +131,75 @@ void BmpViewerActivity::onEnter() {
   const auto pageHeight = renderer.getScreenHeight();
   Rect popupRect = GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
   GUI.fillPopupProgress(renderer, popupRect, 20);  // Initial 20% progress
+
+  if (FsHelpers::hasPngExtension(filePath)) {
+    ImageToFramebufferDecoder* decoder = ImageDecoderFactory::getDecoder(filePath);
+    if (!decoder) {
+      drawViewerError(renderer, mappedInput, pageHeight, "Unsupported image file");
+      return;
+    }
+
+    ImageDimensions dimensions{};
+    if (!decoder->getDimensions(filePath, dimensions)) {
+      drawViewerError(renderer, mappedInput, pageHeight, "Invalid PNG file");
+      return;
+    }
+
+    const auto fit = fitImageToScreen(dimensions.width, dimensions.height, pageWidth, pageHeight);
+    if (fit.width <= 0 || fit.height <= 0) {
+      drawViewerError(renderer, mappedInput, pageHeight, "Invalid image size");
+      return;
+    }
+
+    RenderConfig config;
+    config.x = fit.x;
+    config.y = fit.y;
+    config.maxWidth = fit.width;
+    config.maxHeight = fit.height;
+    config.useGrayscale = true;
+    config.useDithering = true;
+    config.performanceMode = false;
+    config.useExactDimensions = true;
+
+    GUI.fillPopupProgress(renderer, popupRect, 50);
+    renderer.clearScreen();
+    if (!renderDecodedImage(filePath, renderer, *decoder, config)) {
+      drawViewerError(renderer, mappedInput, pageHeight, "Could not decode PNG");
+      return;
+    }
+
+    drawBackHints(renderer, mappedInput);
+    renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+
+    if (renderer.storeBwBuffer()) {
+      renderer.clearScreen(0x00);
+      renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
+      const bool lsbOk = renderDecodedImage(filePath, renderer, *decoder, config);
+      if (lsbOk) {
+        renderer.copyGrayscaleLsbBuffers();
+      }
+
+      renderer.clearScreen(0x00);
+      renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
+      const bool msbOk = renderDecodedImage(filePath, renderer, *decoder, config);
+      if (msbOk) {
+        renderer.copyGrayscaleMsbBuffers();
+      }
+
+      if (lsbOk && msbOk) {
+        renderer.displayGrayBuffer();
+      } else {
+        LOG_ERR("IMGVIEW", "PNG grayscale preview failed; keeping BW preview");
+      }
+      renderer.setRenderMode(GfxRenderer::BW);
+      renderer.restoreBwBuffer();
+    } else {
+      LOG_ERR("IMGVIEW", "Failed to store BW buffer for PNG grayscale preview");
+    }
+
+    return;
+  }
+
   // 1. Open the file
   if (Storage.openFileForRead("BMP", filePath, file)) {
     Bitmap bitmap(file, true);
@@ -97,8 +228,6 @@ void BmpViewerActivity::onEnter() {
       }
 
       // 4. Prepare Rendering
-      const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SET_SLEEP_COVER), "", "");
-
       GUI.fillPopupProgress(renderer, popupRect, 50);
 
       renderer.clearScreen();
@@ -107,28 +236,20 @@ void BmpViewerActivity::onEnter() {
       renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, 0, 0);
 
       // Draw UI hints on the base layer
-      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+      drawBmpViewerHints(renderer, mappedInput);
       // Single pass for non-grayscale images
 
       renderer.displayBuffer(HalDisplay::FAST_REFRESH);
 
     } else {
       // Handle file parsing error
-      renderer.clearScreen();
-      renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2, "Invalid BMP File");
-      const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      drawViewerError(renderer, mappedInput, pageHeight, "Invalid BMP File");
     }
 
     file.close();
   } else {
     // Handle file open error
-    renderer.clearScreen();
-    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2, "Could not open file");
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-    renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+    drawViewerError(renderer, mappedInput, pageHeight, "Could not open file");
   }
 }
 
@@ -180,7 +301,7 @@ void BmpViewerActivity::loop() {
     return;
   }
 
-  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+  if (FsHelpers::hasBmpExtension(filePath) && mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     doSetSleepCover();
     return;
   }
