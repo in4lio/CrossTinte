@@ -6,6 +6,8 @@
 #include <SdCardFont.h>
 #include <SdCardFontRegistry.h>
 
+#include <limits>
+
 SdCardFontManager::~SdCardFontManager() {
   for (auto& lf : loaded_) {
     delete lf.font;
@@ -28,24 +30,35 @@ int SdCardFontManager::computeFontId(uint32_t contentHash, const char* familyNam
   return id != 0 ? id : 1;  // 0 is reserved as "not found" sentinel
 }
 
-bool SdCardFontManager::loadFamily(const SdCardFontFamilyInfo& family, GfxRenderer& renderer, uint8_t fontSizeEnum) {
+uint8_t SdCardFontManager::choosePointSize(const SdCardFontFamilyInfo& family, uint8_t targetPointSize) {
+  auto sizes = family.availableSizes();
+  if (sizes.empty()) return 0;
+
+  uint8_t bestSize = sizes.front();
+  int bestDelta = std::numeric_limits<int>::max();
+  for (const uint8_t size : sizes) {
+    const int delta = size > targetPointSize ? size - targetPointSize : targetPointSize - size;
+    if (delta < bestDelta || (delta == bestDelta && size < bestSize)) {
+      bestSize = size;
+      bestDelta = delta;
+    }
+  }
+  return bestSize;
+}
+
+bool SdCardFontManager::loadFamily(const SdCardFontFamilyInfo& family, GfxRenderer& renderer, uint8_t targetPointSize) {
   // Unload any previously loaded family first
   if (!loadedFamilyName_.empty()) {
     unloadAll(renderer);
   }
 
-  // Select by ordinal position: sort available sizes, then map the font size
-  // enum (SMALL=0 .. EXTRA_LARGE=3) to the corresponding slot. When the
-  // family has fewer sizes than 4, clamp to the last available size.
-  auto sizes = family.availableSizes();
-  if (sizes.empty()) {
+  const uint8_t selectedPointSize = choosePointSize(family, targetPointSize);
+  if (selectedPointSize == 0) {
     LOG_ERR("SDMGR", "Family %s has no files to load", family.name.c_str());
     return false;
   }
 
-  uint8_t idx = fontSizeEnum;
-  if (idx >= sizes.size()) idx = sizes.size() - 1;
-  const SdCardFontFileInfo* selected = family.findFile(sizes[idx]);
+  const SdCardFontFileInfo* selected = family.findFile(selectedPointSize);
 
   auto* font = new (std::nothrow) SdCardFont();
   if (!font) {
@@ -70,8 +83,8 @@ bool SdCardFontManager::loadFamily(const SdCardFontFamilyInfo& family, GfxRender
   renderer.registerSdCardFont(fontId, font);
   loaded_.push_back({font, fontId, selected->pointSize});
 
-  LOG_DBG("SDMGR", "Loaded %s size=%u id=%d styles=%u (sizeEnum=%u)", selected->path.c_str(), selected->pointSize,
-          fontId, font->styleCount(), fontSizeEnum);
+  LOG_DBG("SDMGR", "Loaded %s size=%u id=%d styles=%u (target=%u)", selected->path.c_str(), selected->pointSize, fontId,
+          font->styleCount(), targetPointSize);
 
   EpdFontFamily fontFamily(font->getEpdFont(0), font->getEpdFont(1), font->getEpdFont(2), font->getEpdFont(3));
   renderer.insertFont(fontId, fontFamily);
