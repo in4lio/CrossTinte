@@ -34,6 +34,7 @@
 #include "QrDisplayActivity.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
+#include "SdCardFontGlobals.h"
 #include "activities/util/ConfirmationActivity.h"
 #include "activities/util/IntervalSelectionActivity.h"
 #include "components/UITheme.h"
@@ -431,13 +432,7 @@ void EpubReaderActivity::loop() {
                              const auto& menu = std::get<MenuResult>(result.data);
                              applyOrientation(menu.orientation);
                              if (menu.settingsChanged) {
-                               RenderLock lock(*this);
-                               if (section) {
-                                 cachedSpineIndex = currentSpineIndex;
-                                 cachedChapterTotalPageCount = section->pageCount;
-                                 nextPageNumber = section->currentPage;
-                               }
-                               section.reset();  // Force re-layout with changed reader settings
+                               reindexCurrentSection();
                              }
                              if (!result.isCancelled) {
                                onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
@@ -485,7 +480,7 @@ void EpubReaderActivity::loop() {
     if (!sideButtonLongPressHandled && topLongPressed) {
       sideButtonLongPressHandled = !topReleased;
       if (sideLongPressChangesFont) {
-        if (SETTINGS.changeReaderFontSize(/*larger=*/true)) {
+        if (sdFontSystem.changeReaderFontSize(/*larger=*/true)) {
           reindexCurrentSection();
         }
       } else {
@@ -497,7 +492,7 @@ void EpubReaderActivity::loop() {
     if (!sideButtonLongPressHandled && bottomLongPressed) {
       sideButtonLongPressHandled = !bottomReleased;
       if (sideLongPressChangesFont) {
-        if (SETTINGS.changeReaderFontSize(/*larger=*/false)) {
+        if (sdFontSystem.changeReaderFontSize(/*larger=*/false)) {
           reindexCurrentSection();
         }
       } else {
@@ -928,6 +923,7 @@ void EpubReaderActivity::reindexCurrentSection() {
   SETTINGS.saveToFile();
   {
     RenderLock lock(*this);
+    ensureSdFontLoaded();
     GUI.drawPopup(renderer, tr(STR_INDEXING));
     if (section) {
       cachedSpineIndex = currentSpineIndex;
@@ -1064,6 +1060,11 @@ bool EpubReaderActivity::executeShortPowerButtonAction() {
     case CrossPointSettings::SHORT_PWRBTN::FILE_TRANSFER:
       executeReaderQuickAction(CrossPointSettings::LONG_MENU_FILE_TRANSFER);
       return true;
+    case CrossPointSettings::SHORT_PWRBTN::CHANGE_FONT_SIZE:
+      if (sdFontSystem.changeReaderFontSize(/*larger=*/true)) {
+        reindexCurrentSection();
+      }
+      return true;
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_TILT_PAGE_TURN:
       executeReaderQuickAction(CrossPointSettings::LONG_MENU_TOGGLE_TILT_PAGE_TURN);
       return true;
@@ -1126,6 +1127,11 @@ bool EpubReaderActivity::executeLongPowerButtonAction() {
       return true;
     case CrossPointSettings::SHORT_PWRBTN::FILE_TRANSFER:
       executeReaderQuickAction(CrossPointSettings::LONG_MENU_FILE_TRANSFER);
+      return true;
+    case CrossPointSettings::SHORT_PWRBTN::CHANGE_FONT_SIZE:
+      if (sdFontSystem.changeReaderFontSize(/*larger=*/true)) {
+        reindexCurrentSection();
+      }
       return true;
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_TILT_PAGE_TURN:
       executeReaderQuickAction(CrossPointSettings::LONG_MENU_TOGGLE_TILT_PAGE_TURN);

@@ -5,11 +5,27 @@
 
 #include "CrossPointSettings.h"
 
-static uint8_t fontSizeEnumFromSettings() {
-  uint8_t e = SETTINGS.fontSize;
-  if (e >= CrossPointSettings::FONT_SIZE_COUNT) e = 1;  // default to MEDIUM
-  return e;
+static uint8_t pointSizeFromFontSize(const CrossPointSettings::FONT_SIZE size) {
+  switch (size) {
+    case CrossPointSettings::TEENSY:
+      return 8;
+    case CrossPointSettings::TINY:
+      return 10;
+    case CrossPointSettings::SMALL:
+      return 12;
+    case CrossPointSettings::LARGE:
+      return 16;
+    case CrossPointSettings::EXTRA_LARGE:
+      return 18;
+    case CrossPointSettings::HUGE_SIZE:
+      return 20;
+    case CrossPointSettings::MEDIUM:
+    default:
+      return 14;
+  }
 }
+
+static uint8_t targetPointSizeFromSettings() { return pointSizeFromFontSize(SETTINGS.getEffectiveReaderFontSize()); }
 
 void SdCardFontSystem::begin(GfxRenderer& renderer) {
   registry_.discover();
@@ -25,7 +41,7 @@ void SdCardFontSystem::begin(GfxRenderer& renderer) {
   if (SETTINGS.sdFontFamilyName[0] != '\0') {
     const auto* family = registry_.findFamily(SETTINGS.sdFontFamilyName);
     if (family) {
-      if (manager_.loadFamily(*family, renderer, fontSizeEnumFromSettings())) {
+      if (manager_.loadFamily(*family, renderer, targetPointSizeFromSettings())) {
         LOG_DBG("SDFS", "Loaded SD card font family: %s", SETTINGS.sdFontFamilyName);
       } else {
         LOG_ERR("SDFS", "Failed to load SD font family: %s (clearing)", SETTINGS.sdFontFamilyName);
@@ -53,7 +69,7 @@ void SdCardFontSystem::ensureLoaded(GfxRenderer& renderer) {
 
   const char* wantedFamily = SETTINGS.sdFontFamilyName;
   const std::string& currentFamily = manager_.currentFamilyName();
-  const uint8_t sizeEnum = fontSizeEnumFromSettings();
+  const uint8_t targetPointSize = targetPointSizeFromSettings();
 
   if (wantedFamily[0] == '\0') {
     if (!currentFamily.empty()) {
@@ -74,13 +90,10 @@ void SdCardFontSystem::ensureLoaded(GfxRenderer& renderer) {
       SETTINGS.sdFontFamilyName[0] = '\0';
       return;
     }
-    auto sizes = family->availableSizes();
-    uint8_t idx = sizeEnum;
-    if (idx >= sizes.size()) idx = sizes.size() - 1;
-    uint8_t wantedPt = sizes.empty() ? 0 : sizes[idx];
+    const uint8_t wantedPt = SdCardFontManager::choosePointSize(*family, targetPointSize);
     if (!registryWasDirty && wantedPt == manager_.currentPointSize()) return;
-    LOG_DBG("SDFS", "Reloading %s: size %u -> %u (enum %u)%s", wantedFamily, manager_.currentPointSize(), wantedPt,
-            sizeEnum, registryWasDirty ? " [registry dirty]" : "");
+    LOG_DBG("SDFS", "Reloading %s: size %u -> %u (target %u)%s", wantedFamily, manager_.currentPointSize(), wantedPt,
+            targetPointSize, registryWasDirty ? " [registry dirty]" : "");
   }
 
   if (!currentFamily.empty()) {
@@ -89,7 +102,7 @@ void SdCardFontSystem::ensureLoaded(GfxRenderer& renderer) {
 
   const auto* family = registry_.findFamily(wantedFamily);
   if (family) {
-    if (manager_.loadFamily(*family, renderer, sizeEnum)) {
+    if (manager_.loadFamily(*family, renderer, targetPointSize)) {
       LOG_DBG("SDFS", "Loaded SD font family: %s", wantedFamily);
     } else {
       LOG_ERR("SDFS", "Failed to load SD font family: %s (clearing)", wantedFamily);
@@ -101,9 +114,39 @@ void SdCardFontSystem::ensureLoaded(GfxRenderer& renderer) {
   }
 }
 
+bool SdCardFontSystem::changeReaderFontSize(const bool larger) {
+  if (SETTINGS.sdFontFamilyName[0] == '\0') {
+    return SETTINGS.changeReaderFontSize(larger);
+  }
+
+  if (registryDirty_.exchange(false, std::memory_order_acquire)) {
+    registry_.discover();
+  }
+
+  const auto* family = registry_.findFamily(SETTINGS.sdFontFamilyName);
+  if (!family) {
+    return SETTINGS.changeReaderFontSize(larger);
+  }
+
+  const uint8_t originalFontSize = SETTINGS.fontSize;
+  const uint8_t activeSizeCount = CrossPointSettings::getActiveReaderFontSizeCount();
+  for (uint8_t attempt = 0; attempt < activeSizeCount; attempt++) {
+    if (!SETTINGS.changeReaderFontSize(larger)) break;
+
+    if (family->hasSize(targetPointSizeFromSettings())) {
+      return true;
+    }
+
+    if (SETTINGS.fontSize == originalFontSize) break;
+  }
+
+  SETTINGS.fontSize = originalFontSize;
+  return false;
+}
+
 int SdCardFontSystem::resolveFontId(const char* familyName, uint8_t /*fontSizeEnum*/) const {
-  // The manager loads exactly one size (closest to SETTINGS.fontSize), so the
-  // enum is implicit — always return the single loaded font ID for this family.
+  // The manager loads exactly one size (closest to the effective reader point
+  // size), so the enum is implicit — always return the single loaded font ID for this family.
   // ensureLoaded() must have been called with the current settings before this.
   return manager_.getFontId(familyName);
 }

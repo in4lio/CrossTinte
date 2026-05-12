@@ -116,7 +116,47 @@ class CrossPointSettings {
   };
 
   // Font family options (built-in fonts only; SD card fonts use sdFontFamilyName)
-  enum FONT_FAMILY { LEXENDDECA = 0, BITTER = 1, CHAREINK = 2, FONT_FAMILY_COUNT };
+#if defined(OMIT_LEXENDDECA_FONT_FAMILY) && defined(OMIT_BITTER_FONT_FAMILY) && \
+    defined(OMIT_CHAREINK_FONT_FAMILY) && defined(OMIT_ONEST_FONT_FAMILY) && \
+    defined(OMIT_SOURCERER_FONT_FAMILY)
+#error "At least one reader font family must be enabled"
+#endif
+#if !defined(OMIT_SOURCERER_FONT_FAMILY) && defined(OMIT_LEXENDDECA_FONT_FAMILY) && \
+    defined(OMIT_BITTER_FONT_FAMILY) && defined(OMIT_CHAREINK_FONT_FAMILY) && defined(OMIT_ONEST_FONT_FAMILY) && \
+    (!defined(OMIT_TEENSY_FONT) || !defined(OMIT_HUGE_FONT))
+#error "Sourcerer needs Lexend Deca, Bitter, ChareInk, or Onest enabled as 8px/20px fallback unless teensy and huge sizes are omitted"
+#endif
+  enum FONT_FAMILY {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+    LEXENDDECA,
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
+    BITTER,
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+    CHAREINK,
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+    ONEST,
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+    SOURCERER,
+#endif
+    FONT_FAMILY_COUNT
+  };
+  static constexpr uint8_t DEFAULT_FONT_FAMILY =
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+      LEXENDDECA
+#elif !defined(OMIT_BITTER_FONT_FAMILY)
+      BITTER
+#elif !defined(OMIT_CHAREINK_FONT_FAMILY)
+      CHAREINK
+#elif !defined(OMIT_ONEST_FONT_FAMILY)
+      ONEST
+#elif !defined(OMIT_SOURCERER_FONT_FAMILY)
+      SOURCERER
+#endif
+      ;
   static constexpr uint8_t BUILTIN_FONT_COUNT = FONT_FAMILY_COUNT;
   // Font size options
   enum FONT_SIZE {
@@ -175,7 +215,8 @@ class CrossPointSettings {
     SCREENSHOT = 11,
     CYCLE_PAGE_TURN = 12,
     FILE_TRANSFER = 13,
-    TOGGLE_TILT_PAGE_TURN = 14,
+    CHANGE_FONT_SIZE = 14,
+    TOGGLE_TILT_PAGE_TURN = 15,
     SHORT_PWRBTN_COUNT
   };
 
@@ -282,7 +323,7 @@ class CrossPointSettings {
   uint8_t readerFrontButtonLeft = FRONT_HW_LEFT;
   uint8_t readerFrontButtonRight = FRONT_HW_RIGHT;
   // Reader font settings
-  uint8_t fontFamily = LEXENDDECA;
+  uint8_t fontFamily = DEFAULT_FONT_FAMILY;
   uint8_t fontSize = MEDIUM;
   uint8_t lineSpacing = NORMAL;
   uint8_t paragraphAlignment = JUSTIFIED;
