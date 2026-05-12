@@ -145,16 +145,7 @@ void TxtReaderActivity::loop() {
   if (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::CHANGE_FONT_SIZE &&
       mappedInput.wasReleased(MappedInputManager::Button::Power) &&
       mappedInput.getHeldTime() < SETTINGS.getPowerButtonLongPressDuration()) {
-    if (sdFontSystem.changeReaderFontSize(/*larger=*/true)) {
-      {
-        RenderLock lock(*this);
-        ensureSdFontLoaded();
-      }
-      initialized = false;
-      pageOffsets.clear();
-      currentPageLines.clear();
-      requestUpdate();
-    }
+    changeReaderFontSize();
     return;
   }
 
@@ -448,6 +439,24 @@ void TxtReaderActivity::renderStatusBar() const {
     title = txt->getTitle();
   }
   GUI.drawStatusBar(renderer, progress, currentPage + 1, totalPages, title);
+}
+
+void TxtReaderActivity::changeReaderFontSize() {
+  bool changed = false;
+  {
+    RenderLock lock(*this);
+    changed = sdFontSystem.changeReaderFontSize(/*larger=*/true);
+    if (changed) {
+      SETTINGS.saveToFile();
+      ensureSdFontLoaded();
+      initialized = false;
+      pageOffsets.clear();
+      currentPageLines.clear();
+    }
+  }
+  if (changed) {
+    requestUpdate();
+  }
 }
 
 void TxtReaderActivity::saveProgress() const {
