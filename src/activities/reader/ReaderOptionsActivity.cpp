@@ -8,20 +8,29 @@
 
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
+#include "SdCardFontGlobals.h"
 #include "SettingsList.h"
+#include "activities/settings/FontSelectionActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
-void ReaderOptionsActivity::onEnter() {
-  Activity::onEnter();
-
+void ReaderOptionsActivity::rebuildSettingsList() {
   settings.clear();
-  const auto allSettings = getSettingsList();
+  sdFontSystem.refreshIfDirty();
+  const auto allSettings = getSettingsList(&sdFontSystem.registry());
   settings.reserve(allSettings.size());
   std::copy_if(allSettings.begin(), allSettings.end(), std::back_inserter(settings),
                [](const auto& s) { return s.category == StrId::STR_CAT_READER && s.type != SettingType::ACTION; });
   settingsCount = static_cast<int>(settings.size());
+  if (selectedIndex >= settingsCount) selectedIndex = settingsCount - 1;
+  if (selectedIndex < 0) selectedIndex = 0;
+}
+
+void ReaderOptionsActivity::onEnter() {
+  Activity::onEnter();
+
   selectedIndex = 0;
+  rebuildSettingsList();
 
   requestUpdate();
 }
@@ -31,6 +40,16 @@ void ReaderOptionsActivity::onExit() { Activity::onExit(); }
 void ReaderOptionsActivity::toggleCurrentSetting() {
   if (selectedIndex < 0 || selectedIndex >= settingsCount) return;
   const auto& setting = settings[selectedIndex];
+
+  if (setting.nameId == StrId::STR_FONT_FAMILY) {
+    startActivityForResult(std::make_unique<FontSelectionActivity>(renderer, mappedInput, &sdFontSystem.registry()),
+                           [this](const ActivityResult&) {
+                             SETTINGS.saveToFile();
+                             rebuildSettingsList();
+                             requestUpdate();
+                           });
+    return;
+  }
 
   if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
     const bool cur = SETTINGS.*(setting.valuePtr);
@@ -103,6 +122,13 @@ void ReaderOptionsActivity::render(RenderLock&&) {
           valueText = SETTINGS.*(setting.valuePtr) ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
         } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
           valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
+        } else if (setting.type == SettingType::ENUM && setting.valueGetter) {
+          const uint8_t value = setting.valueGetter();
+          if (!setting.enumStringValues.empty() && value < setting.enumStringValues.size()) {
+            valueText = setting.enumStringValues[value];
+          } else if (value < setting.enumValues.size()) {
+            valueText = I18N.get(setting.enumValues[value]);
+          }
         } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
           valueText = std::to_string(SETTINGS.*(setting.valuePtr));
         }
@@ -110,7 +136,11 @@ void ReaderOptionsActivity::render(RenderLock&&) {
       },
       true);
 
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_TOGGLE), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  const auto confirmLabel =
+      (selectedIndex >= 0 && selectedIndex < settingsCount && settings[selectedIndex].nameId == StrId::STR_FONT_FAMILY)
+          ? tr(STR_SELECT)
+          : tr(STR_TOGGLE);
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4, true);
 
   renderer.displayBuffer();

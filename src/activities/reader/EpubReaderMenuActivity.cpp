@@ -24,6 +24,7 @@ struct ReaderLayoutSettingsSnapshot {
   uint8_t forceParagraphIndents;
   uint8_t bionicReadingEnabled;
   uint8_t guideReadingEnabled;
+  std::string sdFontFamilyName;
 
   bool operator==(const ReaderLayoutSettingsSnapshot& other) const {
     return fontFamily == other.fontFamily && fontSize == other.fontSize && lineSpacing == other.lineSpacing &&
@@ -32,7 +33,7 @@ struct ReaderLayoutSettingsSnapshot {
            hyphenationEnabled == other.hyphenationEnabled && imageRendering == other.imageRendering &&
            extraParagraphSpacing == other.extraParagraphSpacing &&
            forceParagraphIndents == other.forceParagraphIndents && bionicReadingEnabled == other.bionicReadingEnabled &&
-           guideReadingEnabled == other.guideReadingEnabled;
+           guideReadingEnabled == other.guideReadingEnabled && sdFontFamilyName == other.sdFontFamilyName;
   }
   bool operator!=(const ReaderLayoutSettingsSnapshot& other) const { return !(*this == other); }
 };
@@ -52,6 +53,7 @@ ReaderLayoutSettingsSnapshot captureReaderLayoutSettings() {
       SETTINGS.forceParagraphIndents,
       SETTINGS.bionicReadingEnabled,
       SETTINGS.guideReadingEnabled,
+      SETTINGS.sdFontFamilyName,
   };
 }
 
