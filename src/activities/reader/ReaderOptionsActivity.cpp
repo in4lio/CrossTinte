@@ -43,6 +43,7 @@ uint8_t enumRawValueForDisplayIndex(const SettingInfo& setting, uint8_t displayI
 void ReaderOptionsActivity::onEnter() {
   Activity::onEnter();
 
+  selectedIndex = 0;
   rebuildSettingsList();
   requestUpdate();
 }
@@ -62,7 +63,8 @@ void ReaderOptionsActivity::rebuildSettingsList() {
   settings.push_back(SettingInfo::Action(StrId::STR_CUSTOMISE_STATUS_BAR, SettingAction::CustomiseStatusBar));
 
   settingsCount = static_cast<int>(settings.size());
-  selectedIndex = 0;
+  if (selectedIndex >= settingsCount) selectedIndex = settingsCount - 1;
+  if (selectedIndex < 0) selectedIndex = 0;
 }
 
 void ReaderOptionsActivity::onExit() { Activity::onExit(); }
@@ -70,6 +72,16 @@ void ReaderOptionsActivity::onExit() { Activity::onExit(); }
 void ReaderOptionsActivity::toggleCurrentSetting() {
   if (selectedIndex < 0 || selectedIndex >= settingsCount) return;
   const auto& setting = settings[selectedIndex];
+
+  if (setting.nameId == StrId::STR_FONT_FAMILY) {
+    startActivityForResult(std::make_unique<FontSelectionActivity>(renderer, mappedInput, &sdFontSystem.registry()),
+                           [this](const ActivityResult&) {
+                             SETTINGS.saveToFile();
+                             rebuildSettingsList();
+                             requestUpdate();
+                           });
+    return;
+  }
 
   if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
     const bool cur = SETTINGS.*(setting.valuePtr);
@@ -193,7 +205,11 @@ void ReaderOptionsActivity::render(RenderLock&&) {
       },
       true);
 
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_TOGGLE), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  const auto confirmLabel =
+      (selectedIndex >= 0 && selectedIndex < settingsCount && settings[selectedIndex].nameId == StrId::STR_FONT_FAMILY)
+          ? tr(STR_SELECT)
+          : tr(STR_TOGGLE);
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4, true);
 
   renderer.displayBuffer();
