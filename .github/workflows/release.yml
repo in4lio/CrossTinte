@@ -9,6 +9,7 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-t[0-9]+'
 
 permissions:
   contents: write
@@ -22,12 +23,14 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Verify release tag is on main
+      - name: Verify release tag is on default branch
         if: github.event_name == 'push'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          git fetch origin main:refs/remotes/origin/main
+          git fetch origin "$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH"
           TAG_COMMIT="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
-          git merge-base --is-ancestor "$TAG_COMMIT" origin/main
+          git merge-base --is-ancestor "$TAG_COMMIT" "origin/$DEFAULT_BRANCH"
 
       - uses: actions/setup-python@v6
         with:
@@ -97,7 +100,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          token: ${{ secrets.RELEASE_PAT }}
+          token: ${{ github.token }}
           tag_name: v${{ env.RELEASE_VERSION }}
           target_commitish: ${{ github.sha }}
           draft: true
