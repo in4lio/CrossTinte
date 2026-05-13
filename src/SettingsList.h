@@ -17,7 +17,23 @@
 // are appended after the built-in fonts. Otherwise only built-in fonts are listed.
 inline SettingInfo buildFontFamilySetting(const SdCardFontRegistry* registry) {
   // Built-in font labels (StrId)
-  std::vector<StrId> enumValues = {StrId::STR_LEXEND_DECA, StrId::STR_BITTER, StrId::STR_CHAREINK};
+  std::vector<StrId> enumValues = {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+      StrId::STR_LEXEND_DECA,
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
+      StrId::STR_BITTER,
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+      StrId::STR_CHAREINK,
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+      StrId::STR_ONEST,
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+      StrId::STR_SOURCERER,
+#endif
+  };
   // Runtime string labels for SD card fonts
   std::vector<std::string> enumStringValues;
 
@@ -38,9 +54,21 @@ inline SettingInfo buildFontFamilySetting(const SdCardFontRegistry* registry) {
   // with all options when SD fonts are present.
   std::vector<std::string> allStringValues;
   if (sdFontCount > 0) {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
     allStringValues.push_back(I18N.get(StrId::STR_LEXEND_DECA));
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
     allStringValues.push_back(I18N.get(StrId::STR_BITTER));
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
     allStringValues.push_back(I18N.get(StrId::STR_CHAREINK));
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+    allStringValues.push_back(I18N.get(StrId::STR_ONEST));
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+    allStringValues.push_back(I18N.get(StrId::STR_SOURCERER));
+#endif
     allStringValues.insert(allStringValues.end(), enumStringValues.begin(), enumStringValues.end());
   }
 
@@ -138,9 +166,21 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
         // version when SD fonts are installed.
         SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
                           {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
                               StrId::STR_LEXEND_DECA,
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
                               StrId::STR_BITTER,
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
                               StrId::STR_CHAREINK,
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+                              StrId::STR_ONEST,
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+                              StrId::STR_SOURCERER,
+#endif
                           },
                           "fontFamily", StrId::STR_CAT_READER),
         SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
@@ -213,14 +253,16 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
             {StrId::STR_IGNORE, StrId::STR_SLEEP, StrId::STR_PAGE_TURN, StrId::STR_FORCE_REFRESH,
              StrId::STR_CHANGE_FONT, StrId::STR_TOGGLE_GUIDE_DOTS, StrId::STR_TOGGLE_BIONIC_READING,
              StrId::STR_TOGGLE_BOOKMARK, StrId::STR_SYNC_PROGRESS, StrId::STR_MARK_FINISHED, StrId::STR_READING_STATS,
-             StrId::STR_SCREENSHOT_BUTTON, StrId::STR_CYCLE_PAGE_TURN, StrId::STR_FILE_TRANSFER},
+             StrId::STR_SCREENSHOT_BUTTON, StrId::STR_CYCLE_PAGE_TURN, StrId::STR_FILE_TRANSFER,
+             StrId::STR_CHANGE_FONT_SIZE},
             "shortPwrBtn", StrId::STR_CAT_CONTROLS),
         SettingInfo::Enum(
             StrId::STR_LONG_PRESS_ACTION, &CrossPointSettings::longPwrBtn,
             {StrId::STR_IGNORE, StrId::STR_SLEEP, StrId::STR_PAGE_TURN, StrId::STR_FORCE_REFRESH,
              StrId::STR_CHANGE_FONT, StrId::STR_TOGGLE_GUIDE_DOTS, StrId::STR_TOGGLE_BIONIC_READING,
              StrId::STR_TOGGLE_BOOKMARK, StrId::STR_SYNC_PROGRESS, StrId::STR_MARK_FINISHED, StrId::STR_READING_STATS,
-             StrId::STR_SCREENSHOT_BUTTON, StrId::STR_CYCLE_PAGE_TURN, StrId::STR_FILE_TRANSFER},
+             StrId::STR_SCREENSHOT_BUTTON, StrId::STR_CYCLE_PAGE_TURN, StrId::STR_FILE_TRANSFER,
+             StrId::STR_CHANGE_FONT_SIZE},
             "longPwrBtn", StrId::STR_CAT_CONTROLS),
         SettingInfo::Enum(StrId::STR_LONG_PRESS_MENU_ACTION, &CrossPointSettings::longPressMenuAction,
                           {StrId::STR_IGNORE, StrId::STR_SLEEP, StrId::STR_CHANGE_FONT, StrId::STR_TOGGLE_GUIDE_DOTS,

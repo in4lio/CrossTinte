@@ -80,6 +80,248 @@ bool isReaderFontSizeAvailable(const CrossPointSettings::FONT_SIZE size) {
   }
 }
 
+uint8_t mapLegacyFontFamily(const uint8_t legacyValue) {
+  switch (legacyValue) {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+    case 0:
+      return CrossPointSettings::LEXENDDECA;
+#else
+    case 0:
+      return CrossPointSettings::DEFAULT_FONT_FAMILY;
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
+    case 1:
+      return CrossPointSettings::BITTER;
+#else
+    case 1:
+      return CrossPointSettings::DEFAULT_FONT_FAMILY;
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+    case 2:
+      return CrossPointSettings::CHAREINK;
+#else
+    case 2:
+      return CrossPointSettings::DEFAULT_FONT_FAMILY;
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+    case 3:
+      return CrossPointSettings::SOURCERER;
+#else
+    case 3:
+      return CrossPointSettings::DEFAULT_FONT_FAMILY;
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+    case 4:
+      return CrossPointSettings::ONEST;
+#else
+    case 4:
+      return CrossPointSettings::DEFAULT_FONT_FAMILY;
+#endif
+    default:
+      return CrossPointSettings::DEFAULT_FONT_FAMILY;
+  }
+}
+
+void readLegacyFontFamily(FsFile& file, uint8_t& member) {
+  uint8_t tempValue;
+  serialization::readPod(file, tempValue);
+  member = mapLegacyFontFamily(tempValue);
+}
+
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+int getLexendDecaFontId(const CrossPointSettings::FONT_SIZE size) {
+  switch (size) {
+#ifndef OMIT_TEENSY_FONT
+    case CrossPointSettings::TEENSY:
+      return LEXENDDECA_8_FONT_ID;
+#endif
+#ifndef OMIT_TINY_FONT
+    case CrossPointSettings::TINY:
+      return LEXENDDECA_10_FONT_ID;
+#endif
+#ifndef OMIT_SMALL_FONT
+    case CrossPointSettings::SMALL:
+      return LEXENDDECA_12_FONT_ID;
+#endif
+    case CrossPointSettings::MEDIUM:
+    default:
+      return LEXENDDECA_14_FONT_ID;
+    case CrossPointSettings::LARGE:
+      return LEXENDDECA_16_FONT_ID;
+#ifndef OMIT_XLARGE_FONT
+    case CrossPointSettings::EXTRA_LARGE:
+      return LEXENDDECA_18_FONT_ID;
+#endif
+#ifndef OMIT_HUGE_FONT
+    case CrossPointSettings::HUGE_SIZE:
+      return LEXENDDECA_20_FONT_ID;
+#endif
+  }
+}
+#endif
+
+#ifndef OMIT_BITTER_FONT_FAMILY
+int getBitterFontId(const CrossPointSettings::FONT_SIZE size) {
+  switch (size) {
+#ifndef OMIT_TEENSY_FONT
+    case CrossPointSettings::TEENSY:
+      return BITTER_8_FONT_ID;
+#endif
+#ifndef OMIT_TINY_FONT
+    case CrossPointSettings::TINY:
+      return BITTER_10_FONT_ID;
+#endif
+#ifndef OMIT_SMALL_FONT
+    case CrossPointSettings::SMALL:
+      return BITTER_12_FONT_ID;
+#endif
+    case CrossPointSettings::MEDIUM:
+    default:
+      return BITTER_14_FONT_ID;
+    case CrossPointSettings::LARGE:
+      return BITTER_16_FONT_ID;
+#ifndef OMIT_XLARGE_FONT
+    case CrossPointSettings::EXTRA_LARGE:
+      return BITTER_18_FONT_ID;
+#endif
+#ifndef OMIT_HUGE_FONT
+    case CrossPointSettings::HUGE_SIZE:
+      return BITTER_20_FONT_ID;
+#endif
+  }
+}
+#endif
+
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+int getChareInkFontId(const CrossPointSettings::FONT_SIZE size) {
+  switch (size) {
+#ifndef OMIT_TEENSY_FONT
+    case CrossPointSettings::TEENSY:
+      return CHAREINK_8_FONT_ID;
+#endif
+#ifndef OMIT_TINY_FONT
+    case CrossPointSettings::TINY:
+      return CHAREINK_10_FONT_ID;
+#endif
+#ifndef OMIT_SMALL_FONT
+    case CrossPointSettings::SMALL:
+      return CHAREINK_12_FONT_ID;
+#endif
+    case CrossPointSettings::MEDIUM:
+    default:
+      return CHAREINK_14_FONT_ID;
+    case CrossPointSettings::LARGE:
+      return CHAREINK_16_FONT_ID;
+#ifndef OMIT_XLARGE_FONT
+    case CrossPointSettings::EXTRA_LARGE:
+      return CHAREINK_18_FONT_ID;
+#endif
+#ifndef OMIT_HUGE_FONT
+    case CrossPointSettings::HUGE_SIZE:
+      return CHAREINK_20_FONT_ID;
+#endif
+  }
+}
+#endif
+
+#ifndef OMIT_ONEST_FONT_FAMILY
+int getOnestFontId(const CrossPointSettings::FONT_SIZE size) {
+  switch (size) {
+#ifndef OMIT_TEENSY_FONT
+    case CrossPointSettings::TEENSY:
+      return ONEST_8_FONT_ID;
+#endif
+#ifndef OMIT_TINY_FONT
+    case CrossPointSettings::TINY:
+      return ONEST_10_FONT_ID;
+#endif
+#ifndef OMIT_SMALL_FONT
+    case CrossPointSettings::SMALL:
+      return ONEST_12_FONT_ID;
+#endif
+    case CrossPointSettings::MEDIUM:
+    default:
+      return ONEST_14_FONT_ID;
+    case CrossPointSettings::LARGE:
+      return ONEST_16_FONT_ID;
+#ifndef OMIT_XLARGE_FONT
+    case CrossPointSettings::EXTRA_LARGE:
+      return ONEST_18_FONT_ID;
+#endif
+#ifndef OMIT_HUGE_FONT
+    case CrossPointSettings::HUGE_SIZE:
+      return ONEST_20_FONT_ID;
+#endif
+  }
+}
+#endif
+
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+int getSourcererFontId(const CrossPointSettings::FONT_SIZE size) {
+  switch (size) {
+#ifndef OMIT_TEENSY_FONT
+    case CrossPointSettings::TEENSY:
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+      return getLexendDecaFontId(size);
+#elif !defined(OMIT_BITTER_FONT_FAMILY)
+      return getBitterFontId(size);
+#elif !defined(OMIT_CHAREINK_FONT_FAMILY)
+      return getChareInkFontId(size);
+#elif !defined(OMIT_ONEST_FONT_FAMILY)
+      return getOnestFontId(size);
+#else
+      return SOURCERER_14_FONT_ID;
+#endif
+#endif
+#ifndef OMIT_TINY_FONT
+    case CrossPointSettings::TINY:
+      return SOURCERER_10_FONT_ID;
+#endif
+#ifndef OMIT_SMALL_FONT
+    case CrossPointSettings::SMALL:
+      return SOURCERER_12_FONT_ID;
+#endif
+    case CrossPointSettings::MEDIUM:
+    default:
+      return SOURCERER_14_FONT_ID;
+    case CrossPointSettings::LARGE:
+      return SOURCERER_16_FONT_ID;
+#ifndef OMIT_XLARGE_FONT
+    case CrossPointSettings::EXTRA_LARGE:
+      return SOURCERER_18_FONT_ID;
+#endif
+#ifndef OMIT_HUGE_FONT
+    case CrossPointSettings::HUGE_SIZE:
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+      return getLexendDecaFontId(size);
+#elif !defined(OMIT_BITTER_FONT_FAMILY)
+      return getBitterFontId(size);
+#elif !defined(OMIT_CHAREINK_FONT_FAMILY)
+      return getChareInkFontId(size);
+#elif !defined(OMIT_ONEST_FONT_FAMILY)
+      return getOnestFontId(size);
+#else
+      return SOURCERER_16_FONT_ID;
+#endif
+#endif
+  }
+}
+#endif
+
+int getDefaultReaderFontId(const CrossPointSettings::FONT_SIZE size) {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
+  return getLexendDecaFontId(size);
+#elif !defined(OMIT_BITTER_FONT_FAMILY)
+  return getBitterFontId(size);
+#elif !defined(OMIT_CHAREINK_FONT_FAMILY)
+  return getChareInkFontId(size);
+#elif !defined(OMIT_ONEST_FONT_FAMILY)
+  return getOnestFontId(size);
+#elif !defined(OMIT_SOURCERER_FONT_FAMILY)
+  return getSourcererFontId(size);
+#endif
+}
+
 // Convert legacy front button layout into explicit logical->hardware mapping.
 void applyLegacyFrontButtonLayout(CrossPointSettings& settings) {
   switch (static_cast<CrossPointSettings::FRONT_BUTTON_LAYOUT>(settings.frontButtonLayout)) {
@@ -260,7 +502,7 @@ bool CrossPointSettings::loadFromBinaryFile() {
     if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, sideButtonLayout, SIDE_BUTTON_LAYOUT_COUNT);
     if (++settingsRead >= fileSettingsCount) break;
-    readAndValidate(inputFile, fontFamily, FONT_FAMILY_COUNT);
+    readLegacyFontFamily(inputFile, fontFamily);
     if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, fontSize, getActiveReaderFontSizeCount());
     if (++settingsRead >= fileSettingsCount) break;
@@ -359,8 +601,8 @@ float CrossPointSettings::getReaderLineCompression() const {
   }
 
   switch (fontFamily) {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
     case LEXENDDECA:
-    default:
       switch (lineSpacing) {
         case TIGHT:
           return 0.90f;
@@ -370,17 +612,29 @@ float CrossPointSettings::getReaderLineCompression() const {
         case WIDE:
           return 1.2f;
       }
-    case CHAREINK:
+#endif
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+    case SOURCERER:
       switch (lineSpacing) {
         case TIGHT:
-          return 0.95f;
+          return 0.90f;
         case NORMAL:
         default:
-          return 1.1f;
+          return 1.0f;
         case WIDE:
-          return 1.3f;
+          return 1.2f;
       }
+#endif
+#ifndef OMIT_CHAREINK_FONT_FAMILY
+    case CHAREINK:
+#endif
+#ifndef OMIT_ONEST_FONT_FAMILY
+    case ONEST:
+#endif
+#ifndef OMIT_BITTER_FONT_FAMILY
     case BITTER:
+#endif
+    default:
       switch (lineSpacing) {
         case TIGHT:
           return 0.95f;
@@ -475,90 +729,27 @@ int CrossPointSettings::getReaderFontId() const {
   }
 
   switch (fontFamily) {
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
     case LEXENDDECA:
-    default:
-      switch (effectiveSize) {
-#ifndef OMIT_TEENSY_FONT
-        case TEENSY:
-          return LEXENDDECA_8_FONT_ID;
+      return getLexendDecaFontId(effectiveSize);
 #endif
-#ifndef OMIT_TINY_FONT
-        case TINY:
-          return LEXENDDECA_10_FONT_ID;
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+    case SOURCERER:
+      return getSourcererFontId(effectiveSize);
 #endif
-#ifndef OMIT_SMALL_FONT
-        case SMALL:
-          return LEXENDDECA_12_FONT_ID;
-#endif
-        case MEDIUM:
-        default:
-          return LEXENDDECA_14_FONT_ID;
-        case LARGE:
-          return LEXENDDECA_16_FONT_ID;
-#ifndef OMIT_XLARGE_FONT
-        case EXTRA_LARGE:
-          return LEXENDDECA_18_FONT_ID;
-#endif
-#ifndef OMIT_HUGE_FONT
-        case HUGE_SIZE:
-          return LEXENDDECA_20_FONT_ID;
-#endif
-      }
+#ifndef OMIT_CHAREINK_FONT_FAMILY
     case CHAREINK:
-      switch (effectiveSize) {
-#ifndef OMIT_TEENSY_FONT
-        case TEENSY:
-          return CHAREINK_8_FONT_ID;
+      return getChareInkFontId(effectiveSize);
 #endif
-#ifndef OMIT_TINY_FONT
-        case TINY:
-          return CHAREINK_10_FONT_ID;
+#ifndef OMIT_ONEST_FONT_FAMILY
+    case ONEST:
+      return getOnestFontId(effectiveSize);
 #endif
-#ifndef OMIT_SMALL_FONT
-        case SMALL:
-          return CHAREINK_12_FONT_ID;
-#endif
-        case MEDIUM:
-        default:
-          return CHAREINK_14_FONT_ID;
-        case LARGE:
-          return CHAREINK_16_FONT_ID;
-#ifndef OMIT_XLARGE_FONT
-        case EXTRA_LARGE:
-          return CHAREINK_18_FONT_ID;
-#endif
-#ifndef OMIT_HUGE_FONT
-        case HUGE_SIZE:
-          return CHAREINK_20_FONT_ID;
-#endif
-      }
+#ifndef OMIT_BITTER_FONT_FAMILY
     case BITTER:
-      switch (effectiveSize) {
-#ifndef OMIT_TEENSY_FONT
-        case TEENSY:
-          return BITTER_8_FONT_ID;
+      return getBitterFontId(effectiveSize);
 #endif
-#ifndef OMIT_TINY_FONT
-        case TINY:
-          return BITTER_10_FONT_ID;
-#endif
-#ifndef OMIT_SMALL_FONT
-        case SMALL:
-          return BITTER_12_FONT_ID;
-#endif
-        case MEDIUM:
-        default:
-          return BITTER_14_FONT_ID;
-        case LARGE:
-          return BITTER_16_FONT_ID;
-#ifndef OMIT_XLARGE_FONT
-        case EXTRA_LARGE:
-          return BITTER_18_FONT_ID;
-#endif
-#ifndef OMIT_HUGE_FONT
-        case HUGE_SIZE:
-          return BITTER_20_FONT_ID;
-#endif
-      }
+    default:
+      return getDefaultReaderFontId(effectiveSize);
   }
 }

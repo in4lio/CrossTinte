@@ -13,6 +13,10 @@
 //   OMIT_SMALL_FONT  - excludes 12px (Small) reading fonts
 //   OMIT_XLARGE_FONT - excludes 18px (Extra Large) reading fonts; used by env:tiny
 //   OMIT_HUGE_FONT   - excludes 20px (Huge) reading fonts; used by all firmware envs except env:xlarge
+//
+// Per-family guards:
+//   OMIT_LEXENDDECA_FONT_FAMILY, OMIT_BITTER_FONT_FAMILY,
+//   OMIT_CHAREINK_FONT_FAMILY, OMIT_ONEST_FONT_FAMILY, OMIT_SOURCERER_FONT_FAMILY
 #ifdef OMIT_EMOJI_FONTS
 #define BUILTIN_READING_FONT_HEADER(name) <builtinFonts/noemoji/name.h>
 #elif defined(OMIT_PHM)
@@ -21,6 +25,13 @@
 #define BUILTIN_READING_FONT_HEADER(name) <builtinFonts/name.h>
 #endif
 
+#ifdef OMIT_EMOJI_FONTS
+#define BUILTIN_SOURCERER_FONT_HEADER(name) <builtinFonts/noemoji/name.h>
+#else
+#define BUILTIN_SOURCERER_FONT_HEADER(name) <builtinFonts/name.h>
+#endif
+
+#ifndef OMIT_BITTER_FONT_FAMILY
 #ifndef OMIT_TEENSY_FONT
 #include BUILTIN_READING_FONT_HEADER(bitter_8_bold)
 #include BUILTIN_READING_FONT_HEADER(bitter_8_bolditalic)
@@ -59,7 +70,9 @@
 #include BUILTIN_READING_FONT_HEADER(bitter_20_italic)
 #include BUILTIN_READING_FONT_HEADER(bitter_20_regular)
 #endif
+#endif
 
+#ifndef OMIT_CHAREINK_FONT_FAMILY
 #ifndef OMIT_TEENSY_FONT
 #include BUILTIN_READING_FONT_HEADER(charein_8_bold)
 #include BUILTIN_READING_FONT_HEADER(charein_8_bolditalic)
@@ -98,7 +111,9 @@
 #include BUILTIN_READING_FONT_HEADER(charein_20_italic)
 #include BUILTIN_READING_FONT_HEADER(charein_20_regular)
 #endif
+#endif
 
+#ifndef OMIT_LEXENDDECA_FONT_FAMILY
 #ifndef OMIT_TEENSY_FONT
 #include BUILTIN_READING_FONT_HEADER(lexenddeca_8_bold)
 #include BUILTIN_READING_FONT_HEADER(lexenddeca_8_bolditalic)
@@ -137,8 +152,80 @@
 #include BUILTIN_READING_FONT_HEADER(lexenddeca_20_italic)
 #include BUILTIN_READING_FONT_HEADER(lexenddeca_20_regular)
 #endif
+#endif
+
+#ifndef OMIT_ONEST_FONT_FAMILY
+#ifndef OMIT_TEENSY_FONT
+#include BUILTIN_READING_FONT_HEADER(onest_8_bold)
+#include BUILTIN_READING_FONT_HEADER(onest_8_bolditalic)
+#include BUILTIN_READING_FONT_HEADER(onest_8_italic)
+#include BUILTIN_READING_FONT_HEADER(onest_8_regular)
+#endif
+#ifndef OMIT_TINY_FONT
+#include BUILTIN_READING_FONT_HEADER(onest_10_bold)
+#include BUILTIN_READING_FONT_HEADER(onest_10_bolditalic)
+#include BUILTIN_READING_FONT_HEADER(onest_10_italic)
+#include BUILTIN_READING_FONT_HEADER(onest_10_regular)
+#endif
+#ifndef OMIT_SMALL_FONT
+#include BUILTIN_READING_FONT_HEADER(onest_12_bold)
+#include BUILTIN_READING_FONT_HEADER(onest_12_bolditalic)
+#include BUILTIN_READING_FONT_HEADER(onest_12_italic)
+#include BUILTIN_READING_FONT_HEADER(onest_12_regular)
+#endif
+#include BUILTIN_READING_FONT_HEADER(onest_14_bold)
+#include BUILTIN_READING_FONT_HEADER(onest_14_bolditalic)
+#include BUILTIN_READING_FONT_HEADER(onest_14_italic)
+#include BUILTIN_READING_FONT_HEADER(onest_14_regular)
+#include BUILTIN_READING_FONT_HEADER(onest_16_bold)
+#include BUILTIN_READING_FONT_HEADER(onest_16_bolditalic)
+#include BUILTIN_READING_FONT_HEADER(onest_16_italic)
+#include BUILTIN_READING_FONT_HEADER(onest_16_regular)
+#ifndef OMIT_XLARGE_FONT
+#include BUILTIN_READING_FONT_HEADER(onest_18_bold)
+#include BUILTIN_READING_FONT_HEADER(onest_18_bolditalic)
+#include BUILTIN_READING_FONT_HEADER(onest_18_italic)
+#include BUILTIN_READING_FONT_HEADER(onest_18_regular)
+#endif
+#ifndef OMIT_HUGE_FONT
+#include BUILTIN_READING_FONT_HEADER(onest_20_bold)
+#include BUILTIN_READING_FONT_HEADER(onest_20_bolditalic)
+#include BUILTIN_READING_FONT_HEADER(onest_20_italic)
+#include BUILTIN_READING_FONT_HEADER(onest_20_regular)
+#endif
+#endif
+
+#ifndef OMIT_SOURCERER_FONT_FAMILY
+#ifndef OMIT_TINY_FONT
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_10_bold)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_10_bolditalic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_10_italic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_10_regular)
+#endif
+#ifndef OMIT_SMALL_FONT
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_12_bold)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_12_bolditalic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_12_italic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_12_regular)
+#endif
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_14_bold)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_14_bolditalic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_14_italic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_14_regular)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_16_bold)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_16_bolditalic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_16_italic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_16_regular)
+#ifndef OMIT_XLARGE_FONT
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_18_bold)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_18_bolditalic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_18_italic)
+#include BUILTIN_SOURCERER_FONT_HEADER(sourcerer_18_regular)
+#endif
+#endif
 
 #undef BUILTIN_READING_FONT_HEADER
+#undef BUILTIN_SOURCERER_FONT_HEADER
 
 // UI fonts - no emoji or PHM variants.
 #include <builtinFonts/inter_10_bold.h>
