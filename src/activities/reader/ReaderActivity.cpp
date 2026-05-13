@@ -23,6 +23,8 @@ bool ReaderActivity::isTxtFile(const std::string& path) {
 
 bool ReaderActivity::isBmpFile(const std::string& path) { return FsHelpers::hasBmpExtension(path); }
 
+bool ReaderActivity::isPngFile(const std::string& path) { return FsHelpers::hasPngExtension(path); }
+
 std::unique_ptr<Epub> ReaderActivity::loadEpub(const std::string& path) {
   if (!Storage.exists(path.c_str())) {
     LOG_ERR("READER", "File does not exist: %s", path.c_str());
@@ -111,7 +113,7 @@ void ReaderActivity::onEnter() {
   sdFontSystem.ensureLoaded(renderer);
 
   currentBookPath = initialBookPath;
-  if (isBmpFile(initialBookPath)) {
+  if (isBmpFile(initialBookPath) || isPngFile(initialBookPath)) {
     onGoToBmpViewer(initialBookPath);
   } else if (isXtcFile(initialBookPath)) {
     auto xtc = loadXtc(initialBookPath);
