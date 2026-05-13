@@ -29,6 +29,8 @@ namespace {
 
 constexpr bool TURN_OFF_SCREEN_AFTER_SLEEP_REFRESH = true;
 
+enum class PngOverlayPass : uint8_t { BW, GrayscaleLsb, GrayscaleMsb };
+
 void hideOverlayBatteryStrip(const GfxRenderer& renderer) {
   if (!SETTINGS.statusBarBattery) {
     return;
@@ -63,6 +65,7 @@ void hideOverlayBatteryStrip(const GfxRenderer& renderer) {
 // Context passed through PNGdec's decode() user-pointer to the per-scanline draw callback.
 struct PngOverlayCtx {
   const GfxRenderer* renderer;
+  PngOverlayPass pass;
   int screenW;
   int screenH;
   int srcWidth;
@@ -78,6 +81,11 @@ struct PngOverlayCtx {
   int32_t transparentColor;
   PNG* pngObj;  // for lazy-init of transparentColor on first callback
 };
+
+uint8_t quantizeOverlayGray(uint8_t gray) {
+  const uint16_t nearest = static_cast<uint16_t>(gray) + 42;
+  return static_cast<uint8_t>(std::min<uint16_t>(nearest / 85, 3));
+}
 
 // PNGdec file I/O callbacks — mirror the pattern in PngToFramebufferConverter.cpp.
 void* pngSleepOpen(const char* filename, int32_t* size) {
@@ -108,7 +116,8 @@ int32_t pngSleepSeek(PNGFILE* pFile, int32_t pos) {
 
 // Per-scanline draw callback for PNG overlay compositing.
 // Transparent pixels (alpha < 128) are skipped so the reader page shows through.
-// Opaque pixels are drawn in their grayscale brightness (dark → black, light → white).
+// Opaque pixels are mapped to CrossInk's current 2-bit grayscale planes:
+// 0 = black, 1 = dark gray, 2 = light gray, 3 = white.
 int pngOverlayDraw(PNGDRAW* pDraw) {
   PngOverlayCtx* ctx = reinterpret_cast<PngOverlayCtx*>(pDraw->pUser);
 
@@ -180,7 +189,22 @@ int pngOverlayDraw(PNGDRAW* pDraw) {
       }
 
       if (alpha >= 128) {
-        ctx->renderer->drawPixel(outX, destY, gray < 128);  // true = black, false = white
+        const uint8_t level = quantizeOverlayGray(gray);
+        switch (ctx->pass) {
+          case PngOverlayPass::BW:
+            ctx->renderer->drawPixel(outX, destY, level < 3);
+            break;
+          case PngOverlayPass::GrayscaleLsb:
+            if (level == 1) {
+              ctx->renderer->drawPixel(outX, destY, false);
+            }
+            break;
+          case PngOverlayPass::GrayscaleMsb:
+            if (level == 1 || level == 2) {
+              ctx->renderer->drawPixel(outX, destY, false);
+            }
+            break;
+        }
       }
       // alpha < 128: transparent — leave the reader page pixel intact
     }
@@ -661,7 +685,8 @@ void SleepActivity::renderOverlaySleepScreen() const {
 
   // Step 2: Load the overlay image using the same selection logic as renderCustomSleepScreen.
   // BMP: white pixels are skipped (transparent via drawBitmap), black pixels composited on top.
-  // PNG: pixels with alpha < 128 are skipped; opaque pixels are drawn with their grayscale value.
+  // PNG: pixels with alpha < 128 are skipped; opaque pixels use the 4-level gray pipeline.
+  bool overlayAlreadyDisplayed = false;
   auto tryDrawOverlay = [&](const std::string& filename) -> OverlayDrawResult {
     FsFile file;
     if (!Storage.openFileForRead("SLP", filename, file)) {
@@ -717,18 +742,25 @@ void SleepActivity::renderOverlaySleepScreen() const {
               static_cast<unsigned>(MIN_FREE_HEAP), filename.c_str());
       return OverlayDrawResult::Failed;
     }
-    PNG* png = new (std::nothrow) PNG();
-    if (!png) {
-      LOG_ERR("SLP", "Failed to allocate PNG overlay decoder for %s", filename.c_str());
-      return OverlayDrawResult::Failed;
-    }
+    auto openPng = [&]() -> PNG* {
+      PNG* png = new (std::nothrow) PNG();
+      if (!png) {
+        LOG_ERR("SLP", "Failed to allocate PNG overlay decoder for %s", filename.c_str());
+        return nullptr;
+      }
+      const int rc = png->open(filename.c_str(), pngSleepOpen, pngSleepClose, pngSleepRead, pngSleepSeek, pngOverlayDraw);
+      if (rc != PNG_SUCCESS) {
+        LOG_ERR("SLP", "PNG overlay open failed for %s: %d", filename.c_str(), rc);
+        delete png;
+        return nullptr;
+      }
+      return png;
+    };
 
-    int rc = png->open(filename.c_str(), pngSleepOpen, pngSleepClose, pngSleepRead, pngSleepSeek, pngOverlayDraw);
-    if (rc != PNG_SUCCESS) {
-      delete png;
-      LOG_ERR("SLP", "PNG overlay open failed for %s: %d", filename.c_str(), rc);
-      return OverlayDrawResult::Failed;
-    }
+    PNG* png = openPng();
+    if (!png) return OverlayDrawResult::Failed;
+
+    int rc = PNG_SUCCESS;
 
     const int srcW = png->getWidth(), srcH = png->getHeight();
     float yScale = 1.0f;
@@ -741,27 +773,87 @@ void SleepActivity::renderOverlaySleepScreen() const {
       yScale = (float)dstH / srcH;
     }
 
-    PngOverlayCtx ctx;
-    ctx.renderer = &renderer;
-    ctx.screenW = pageWidth;
-    ctx.screenH = pageHeight;
-    ctx.srcWidth = srcW;
-    ctx.dstWidth = dstW;
-    ctx.dstX = (pageWidth - dstW) / 2;
-    ctx.dstY = (pageHeight - dstH) / 2;
-    ctx.yScale = yScale;
-    ctx.lastDstY = -1;
-    ctx.transparentColor = -2;  // will be resolved on first draw callback (after tRNS is parsed)
-    ctx.pngObj = png;
+    const int dstX = (pageWidth - dstW) / 2;
+    const int dstY = (pageHeight - dstH) / 2;
 
     LOG_INF("SLP", "Drawing PNG overlay: %s", filename.c_str());
-    rc = png->decode(&ctx, 0);
-    png->close();
-    delete png;
-    if (rc != PNG_SUCCESS) {
+    auto decodePass = [&](PngOverlayPass pass) -> bool {
+      PngOverlayCtx ctx;
+      ctx.renderer = &renderer;
+      ctx.pass = pass;
+      ctx.screenW = pageWidth;
+      ctx.screenH = pageHeight;
+      ctx.srcWidth = srcW;
+      ctx.dstWidth = dstW;
+      ctx.dstX = dstX;
+      ctx.dstY = dstY;
+      ctx.yScale = yScale;
+      ctx.lastDstY = -1;
+      ctx.transparentColor = -2;  // resolved on first draw callback after tRNS is parsed
+      ctx.pngObj = png;
+
+      rc = png->decode(&ctx, 0);
+      png->close();
+      delete png;
+      png = nullptr;
+      return rc == PNG_SUCCESS;
+    };
+
+    if (!decodePass(PngOverlayPass::BW)) {
       LOG_ERR("SLP", "PNG overlay decode failed for %s: %d", filename.c_str(), rc);
       return OverlayDrawResult::Failed;
     }
+
+    renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+    if (!renderer.storeBwBuffer()) {
+      LOG_ERR("SLP", "Failed to store PNG overlay BW buffer for grayscale");
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH, TURN_OFF_SCREEN_AFTER_SLEEP_REFRESH);
+      overlayAlreadyDisplayed = true;
+      return OverlayDrawResult::Drawn;
+    }
+
+    auto restoreBwOverlayBuffer = [&]() {
+      renderer.setRenderMode(GfxRenderer::BW);
+      renderer.restoreBwBuffer();
+    };
+
+    auto finishWithBwOverlay = [&]() {
+      restoreBwOverlayBuffer();
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH, TURN_OFF_SCREEN_AFTER_SLEEP_REFRESH);
+      overlayAlreadyDisplayed = true;
+    };
+
+    png = openPng();
+    if (!png) {
+      finishWithBwOverlay();
+      return OverlayDrawResult::Drawn;
+    }
+    renderer.clearScreen(0x00);
+    if (decodePass(PngOverlayPass::GrayscaleLsb)) {
+      renderer.copyGrayscaleLsbBuffers();
+    } else {
+      LOG_DBG("SLP", "PNG gray LSB decode failed: %s (%d)", filename.c_str(), rc);
+      finishWithBwOverlay();
+      return OverlayDrawResult::Drawn;
+    }
+
+    png = openPng();
+    if (!png) {
+      finishWithBwOverlay();
+      return OverlayDrawResult::Drawn;
+    }
+    renderer.clearScreen(0x00);
+    if (decodePass(PngOverlayPass::GrayscaleMsb)) {
+      renderer.copyGrayscaleMsbBuffers();
+    } else {
+      LOG_DBG("SLP", "PNG gray MSB decode failed: %s (%d)", filename.c_str(), rc);
+      finishWithBwOverlay();
+      return OverlayDrawResult::Drawn;
+    }
+
+    renderer.displayGrayBuffer(TURN_OFF_SCREEN_AFTER_SLEEP_REFRESH);
+    restoreBwOverlayBuffer();
+    overlayAlreadyDisplayed = true;
     return OverlayDrawResult::Drawn;
   };
 
@@ -803,6 +895,10 @@ void SleepActivity::renderOverlaySleepScreen() const {
   }
 
   renderer.setOrientation(savedOrientation);
+  if (overlayAlreadyDisplayed) {
+    return;
+  }
+
   const bool shouldRunGrayscalePass =
       backgroundSupportsGrayscale && (backgroundWasRebuilt || (overlayPageBufferTrusted && !path.empty()));
   renderer.displayBuffer(HalDisplay::HALF_REFRESH, !shouldRunGrayscalePass && TURN_OFF_SCREEN_AFTER_SLEEP_REFRESH);
