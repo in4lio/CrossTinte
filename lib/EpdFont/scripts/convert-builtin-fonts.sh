@@ -4,6 +4,8 @@ set -e
 
 cd "$(dirname "$0")"
 
+PYTHON_BIN="${PYTHON:-python3}"
+
 EMOJI_FONT="../builtinFonts/source/NotoEmoji/NotoEmoji-Regular.ttf"
 SYMBOLS_FONT="../builtinFonts/source/NotoSymbols/NotoSansSymbols-Regular.ttf"
 PHM_FONT="../builtinFonts/source/NotoSansCJKsc/NotoSansCJKsc-Regular.otf"
@@ -153,7 +155,14 @@ generate_family() {
       local style_lower
       style_lower="$(echo $style | tr '[:upper:]' '[:lower:]')"
       local font_name="${family_name}_${size}_${style_lower}"
-      local font_path="../builtinFonts/source/${source_dir}/${source_prefix}-${style}.ttf"
+      local source_style="$style"
+      if [[ "$family_name" == "onest" ]]; then
+        case "$style" in
+          Italic) source_style="Regular" ;;
+          BoldItalic) source_style="Bold" ;;
+        esac
+      fi
+      local font_path="../builtinFonts/source/${source_dir}/${source_prefix}-${source_style}.ttf"
       local output_path="${output_dir}/${font_name}.h"
       local font_stack=("$font_path")
       local interval_args=()
@@ -177,7 +186,7 @@ generate_family() {
         include_args+=($(font_include_args $(( ${#font_stack[@]} - 1 )) "${PHM_FALLBACK_RANGES[@]}"))
       fi
 
-      python fontconvert.py $font_name $size "${font_stack[@]}" "${interval_args[@]}" "${include_args[@]}" "${READING_FONT_RENDER_ARGS[@]}" > $output_path
+      "$PYTHON_BIN" fontconvert.py $font_name $size "${font_stack[@]}" "${interval_args[@]}" "${include_args[@]}" "${READING_FONT_RENDER_ARGS[@]}" > $output_path
       echo "Generated $output_path"
     done
   done
@@ -192,8 +201,10 @@ generate_reading_variant() {
   mkdir -p "$output_dir"
   echo "Generating ${label} font variants..."
   generate_family lexenddeca LexendDeca LexendDeca "$output_dir" "$include_emoji" "$include_phm" yes
+  generate_family sourcerer Sourcerer Sourcerer "$output_dir" "$include_emoji" "$include_phm" yes
   generate_family bitter Bitter Bitter "$output_dir" "$include_emoji" "$include_phm" yes
   generate_family charein ChareInk7 ChareInk7 "$output_dir" "$include_emoji" "$include_phm" no
+  generate_family onest Onest Onest "$output_dir" "$include_emoji" "$include_phm" yes
   echo ""
   echo "${label} variants complete."
   echo ""
@@ -217,15 +228,15 @@ for size in ${UI_FONT_SIZES[@]}; do
     font_name="inter_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
     font_path="../builtinFonts/source/Inter/Inter-${style}.ttf"
     output_path="../builtinFonts/${font_name}.h"
-    python fontconvert.py $font_name $size $font_path > $output_path
+    "$PYTHON_BIN" fontconvert.py $font_name $size $font_path > $output_path
     echo "Generated $output_path"
   done
 done
 
 # Small UI Font - Inter
 
-python fontconvert.py inter_8_regular 8 ../builtinFonts/source/Inter/Inter-Regular.ttf > ../builtinFonts/inter_8_regular.h
+"$PYTHON_BIN" fontconvert.py inter_8_regular 8 ../builtinFonts/source/Inter/Inter-Regular.ttf > ../builtinFonts/inter_8_regular.h
 
 echo ""
 echo "Running compression verification..."
-python verify_compression.py ../builtinFonts/
+"$PYTHON_BIN" verify_compression.py ../builtinFonts/
