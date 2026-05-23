@@ -37,6 +37,7 @@ constexpr size_t VERSION_SEGMENT_COUNT = 4;
 
 struct ParsedVersion {
   int segments[VERSION_SEGMENT_COUNT] = {0, 0, 0, 0};
+  int forkRevision = 0;
   bool valid = false;
   bool releaseCandidate = false;
 };
@@ -82,6 +83,14 @@ ParsedVersion parseVersion(const char* version) {
     ++p;
   }
 
+  if (p[0] == '-' && (p[1] == 't' || p[1] == 'T') && isDigit(p[2])) {
+    p += 2;
+    while (isDigit(*p)) {
+      parsed.forkRevision = parsed.forkRevision * 10 + (*p - '0');
+      ++p;
+    }
+  }
+
   parsed.valid = true;
   parsed.releaseCandidate = containsRcMarker(version);
   return parsed;
@@ -96,6 +105,10 @@ int compareVersions(const char* latestVersion, const char* currentVersion) {
     if (latest.segments[i] != current.segments[i]) {
       return latest.segments[i] > current.segments[i] ? 1 : -1;
     }
+  }
+
+  if (latest.forkRevision != current.forkRevision) {
+    return latest.forkRevision > current.forkRevision ? 1 : -1;
   }
 
   if (current.releaseCandidate && !latest.releaseCandidate) return 1;
