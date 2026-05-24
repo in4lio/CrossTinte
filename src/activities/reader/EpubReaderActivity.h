@@ -26,6 +26,12 @@ class EpubReaderActivity final : public Activity {
   int pagesUntilFullRefresh = 0;
   int cachedSpineIndex = 0;
   int cachedChapterTotalPageCount = 0;
+  struct CachedContentAnchor {
+    int spineIndex;
+    uint16_t paragraphIndex;
+    uint16_t pageOffset;
+  };
+  std::optional<CachedContentAnchor> cachedContentAnchor;
   unsigned long lastPageTurnTime = 0UL;
   unsigned long pageTurnDuration = 0UL;
   BookReadingStats stats;
@@ -87,6 +93,9 @@ class EpubReaderActivity final : public Activity {
                       int orientedMarginBottom, int orientedMarginLeft);
   void renderStatusBar() const;
   void silentIndexNextChapterIfNeeded(uint16_t viewportWidth, uint16_t viewportHeight);
+  void rememberPagePosition(int spineIndex, int currentPage, int pageCount);
+  void rememberSectionPosition();
+  void clearContentAnchor();
   bool saveProgress(int spineIndex, int currentPage, int pageCount);
   void openFileTransfer();
   void openAutoPageTurnIntervalPicker(bool ignoreInitialConfirmRelease = false);
